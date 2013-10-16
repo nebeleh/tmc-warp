@@ -1,0 +1,172 @@
+<html>
+<head>
+<script src="assets/javascripts/jquery.min.js"></script>
+<script src="js/api.js"></script>
+</head>
+<body>
+
+<!--  Thumbnail -->
+
+<img id="thumbnail" style="width:160px; height:120px">
+
+<script>
+api.readThumbnail("../datasets/pitt10x1/IMG_5000.JPG").assignToHTMLImageElement(document.getElementById('thumbnail'));
+</script>
+
+<hr>
+
+<!-- EXIF times -->
+
+<div>PATP10 Time: <span id="time"></span></div>
+<div>PITT10x1 Time: <span id="time2"></span></div>
+
+<script>
+$('#time').text(api.exifTime("../datasets/patp10_1x1/00IMG_9946.JPG"));
+$('#time2').text(api.exifTime("../datasets/pitt10x1/IMG_5000.JPG"));
+</script>
+
+<hr>
+
+<!-- Save as -->
+
+<button id="save_as">Save As...</button>
+
+<script>
+function saveAs() {
+  var startDirectory = '';
+  var saveDir = api.saveAsDialog('Save Time Machine Definition', startDirectory, '*.tmc');
+  if (saveDir == '') {
+    alert('saveAs canceled');
+  } else {
+    alert('saveAs: ' + saveDir);
+  }
+}
+
+$('#save_as').click(saveAs);
+</script>
+
+<hr>
+
+<!-- Drag and drop files and folders -->
+
+<div id="dropbox" style="background: #4f4; padding: 20px; display: table">Drop files and folders here</div>
+<pre id="dropped"></pre>
+
+<script>
+function noopHandler(evt) {
+  evt.stopPropagation();
+  evt.preventDefault();
+}
+function dropHandler(evt) {
+  evt.stopPropagation();
+  evt.preventDefault();
+  var droppedFiles = api.droppedFilesRecursive();
+  api.readThumbnail(droppedFiles[0]).assignToHTMLImageElement(document.getElementById('thumbnail'));
+  $('#dropped').text(droppedFiles.join('\n'));
+}
+var dropbox = document.getElementById("dropbox");
+dropbox.addEventListener("dragenter", noopHandler, false);
+dropbox.addEventListener("dragexit", noopHandler, false);
+dropbox.addEventListener("dragover", noopHandler, false);
+dropbox.addEventListener("drop", dropHandler, false);
+</script>
+
+<hr>
+
+<!-- Test save as, write, and read -->
+
+<button id="swr">Save, write, and read...</button>
+<div id="swr_out"></div>
+<script>
+function saveWriteRead() {
+  $('#swr_out').text('');
+  var startDirectory = '';
+  var saveDir = api.saveAsDialog('Save Time Machine Definition', startDirectory, '*.tmc');
+  if (saveDir == '') {
+    alert('saveAs canceled');
+  } else {
+    if (!api.makeDirectory(saveDir)) {
+      alert('Error creating directory ' + saveDir);
+      return;
+    }
+    var definitionPath = saveDir + '/definition.tmc';
+    var writeData = {foo:3};
+    if (!api.writeFile(definitionPath, JSON.stringify(writeData))) {
+       alert('Error creating ' + definitionPath);
+       return;
+    }
+    var readData = JSON.parse(api.readFile(definitionPath));
+    $('#swr_out').text('Wrote ' + JSON.stringify(writeData) + ' to ' + definitionPath + ' and read back ' + JSON.stringify(readData));
+  }
+}
+
+$('#swr').click(saveWriteRead);
+</script>
+
+<hr>
+
+<!-- Test ruby subprocess -->
+
+<button id="r10">Ruby count to 10</button>
+<pre id="r10_out"></pre>
+
+<script>
+
+function r10() {
+  if (!api.invokeRubySubprocess(['count_to_10.rb'], r10_out)) {
+    alert('Could not start ruby subprocess');
+  }
+  $('#r10_out').html('Starting count_to_10.rb\n');
+}
+
+function r10_out(out) {
+  console.log("In r10_out, out=" + out);
+  if (typeof out === 'number') {
+    $('#r10_out').append("Process finished, exit code " + out + "\n");
+  } else {
+    $('#r10_out').append(out)
+  }
+}
+
+$('#r10').click(r10);
+
+</script>
+
+<hr>
+
+<!-- ct.rb selftest -->
+
+<button id="ct_selftest">ct.rb selftest</button>
+<button id="ct_selftest_no_stitch">ct.rb selftest without stitch</button>
+<pre id="ct_selftest_out"></pre>
+
+<script>
+function ct_selftest() {
+  if (!api.invokeRubySubprocess(['../ct/ct.rb', '--selftest'], ct_selftest_out)) {
+    alert('Could not start ruby subprocess');
+  }
+  $('#ct_selftest_out').html('Starting ct_selftest\n');
+}
+
+function ct_selftest_no_stitch() {
+  if (!api.invokeRubySubprocess(['../ct/ct.rb', '--selftest-no-stitch'], ct_selftest_out)) {
+    alert('Could not start ruby subprocess');
+  }
+  $('#ct_selftest_out').html('Starting ct_selftest (no stitch)\n');
+}
+
+
+function ct_selftest_out(out) {
+  console.log("In ct_selftest_out, out=" + out);
+  if (typeof out === 'number') {
+    $('#ct_selftest_out').append("Process finished, exit code " + out + "\n");
+  } else {
+    $('#ct_selftest_out').append(out)
+  }
+}
+
+$('#ct_selftest').click(ct_selftest);
+$('#ct_selftest_no_stitch').click(ct_selftest_no_stitch);
+</script>
+</body>
+</html>
