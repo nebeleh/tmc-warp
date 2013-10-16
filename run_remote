@@ -52,7 +52,7 @@ if __name__ == "__main__":
 			cmdline += "&& "
 	
 	script = "export PATH=$PBS_O_PATH\n"
-  script += "export LANG=C\n"
+	script += "export LANG=C\n"
 	script += "echo JOB_START `date +%s` >&2\n"
 	script += "date >&2\n"
 	script += "echo HOSTNAME `hostname` >&2\n"
