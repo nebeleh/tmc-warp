@@ -1,19 +1,22 @@
+// @license
+// Redistribution and use in source and binary forms ...
+
 // Class containing various (static) generic utility methods.
 //
 // Dependencies: None
 //
 // Copyright 2011 Carnegie Mellon University. All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright notice, this list of
 //    conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright notice, this list
 //    of conditions and the following disclaimer in the documentation and/or other materials
 //    provided with the distribution.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY CARNEGIE MELLON UNIVERSITY ''AS IS'' AND ANY EXPRESS OR IMPLIED
 // WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
 // FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL CARNEGIE MELLON UNIVERSITY OR
@@ -23,7 +26,7 @@
 // ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 // ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
+//
 // The views and conclusions contained in the software and documentation are those of the
 // authors and should not be interpreted as representing official policies, either expressed
 // or implied, of Carnegie Mellon University.
@@ -32,6 +35,8 @@
 // Chris Bartley (bartley@cmu.edu)
 // Paul Dille (pdille@andrew.cmu.edu)
 // Randy Sargent (randy.sargent@cs.cmu.edu)
+
+"use strict";
 
 //
 // VERIFY NAMESPACE
@@ -65,25 +70,58 @@ if (!org.gigapan) {
 // CODE
 //
 (function() {
-  var isChromeCached;
-  var areLogging = true;
   var isChromeUserAgent = navigator.userAgent.match(/Chrome/) != null;
-  var isSafariUserAgent = navigator.userAgent.match(/Safari/) != null  && !isChromeUserAgent;  // the Chrome user agent actually has the word "Safari" in it too!
+  // The Chrome user agent actually has the word "Safari" in it too!
+  var isSafariUserAgent = navigator.userAgent.match(/Safari/) != null && !isChromeUserAgent;
   var isMSIEUserAgent = navigator.userAgent.match(/MSIE/) != null;
+  var matchIEVersion = navigator.userAgent.match(/MSIE\s([\d]+)/);
+  var isFirefoxUserAgent = navigator.userAgent.match(/Firefox/) != null;
+  var isChromeOS = navigator.userAgent.match(/CrOS/) != null;
+  var mediaType = ".mp4";
+  var viewerType = (isSafariUserAgent || isChromeOS) ? "video" : "canvas";
+
   //0 == none
   //1 == errors only
   //2 == verbose (everything)
-  var loggingLevel = 2
+  var loggingLevel = 1;
 
   org.gigapan.Util = function() { };
 
+  org.gigapan.Util.setLoggingLevel = function(newLevel) {
+    if (newLevel < 0 || newLevel > 2) newLevel = 1;
+    loggingLevel = newLevel;
+  };
+
+  org.gigapan.Util.isMobile = function() {
+    return (navigator.userAgent.match(/Android/i) ||
+            navigator.userAgent.match(/webOS/i) ||
+            navigator.userAgent.match(/iPhone/i) ||
+            navigator.userAgent.match(/iPad/i) ||
+            navigator.userAgent.match(/iPod/i) ||
+            navigator.userAgent.match(/BlackBerry/i) ||
+            navigator.userAgent.match(/Windows Phone/i));
+  };
+
   org.gigapan.Util.browserSupported = function() {
-    //always fail for IE, even though 9+ can handle video tags
-    //we do this since playback in IE is glitchy and not good enough for public use
-    if (isMSIEUserAgent) return false;
     var v = document.createElement('video');
-    //check if video tag is supported and the browser supports H.264
-    return !!(v.canPlayType && v.canPlayType('video/mp4; codecs="avc1.42E01E, mp4a.40.2"').replace(/no/, ''));
+    var canPlay = false;
+    // We do not support mobile devices (Android, iOS, etc) due to OS limitations
+    if (org.gigapan.Util.isMobile())
+      return canPlay;
+    // Check if video tag is supported and that the browser supports WebM
+    canPlay = !!(v.canPlayType && v.canPlayType('video/webm; codecs="vp8"').replace(/no/, ''));
+    if (canPlay) {
+      canPlay = true;
+      mediaType = ".webm";
+    } else {
+      // Check if video tag is supported and that the browser supports H.264
+      canPlay = !!(v.canPlayType && v.canPlayType('video/mp4; codecs="avc1.42E01E, mp4a.40.2"').replace(/no/, ''));
+      if (canPlay) {
+        canPlay = true;
+        mediaType = ".mp4";
+      }
+    }
+    return canPlay;
   };
 
   org.gigapan.Util.isChrome = function() {
@@ -94,13 +132,56 @@ if (!org.gigapan) {
     return isSafariUserAgent;
   };
 
+  org.gigapan.Util.isIE = function() {
+    return isMSIEUserAgent;
+  };
+
+  org.gigapan.Util.isFirefox = function() {
+    return isFirefoxUserAgent;
+  };
+
+  org.gigapan.Util.isIE9 = function() {
+    return (isMSIEUserAgent && matchIEVersion[1] == 9);
+  };
+
+  org.gigapan.Util.isOpera = function() {
+    return typeof(window.opera) !== "undefined";
+  };
+
+  org.gigapan.Util.getMediaType = function() {
+    return mediaType;
+  };
+
+  org.gigapan.Util.setMediaType = function(type) {
+    if (type != ".mp4" && type != ".webm")
+      return;
+    mediaType = type;
+  };
+
+  org.gigapan.Util.getViewerType = function() {
+    return viewerType;
+  };
+
+  org.gigapan.Util.setViewerType = function(type) {
+    if (type != "canvas" && type != "video")
+      return;
+    viewerType = type;
+  };
+
+  org.gigapan.Util.playbackRateSupported = function() {
+    var video = document.createElement("video");
+    return !!video.playbackRate;
+  };
+
   org.gigapan.Util.isNumber = function(n) {
-    // code taken from http://stackoverflow.com/questions/18082/validate-numbers-in-javascript-isnumeric
-    return !isNaN(parseFloat(n)) && isFinite(n);
+    // Code taken from http://stackoverflow.com/questions/18082/validate-numbers-in-javascript-isnumeric
+    // Added check to ensure that the value being checked is defined
+    return (typeof(n) !== 'undefined') && !isNaN(parseFloat(n)) && isFinite(n);
   };
 
   org.gigapan.Util.log = function(str, logType) {
-    if (typeof(console) == 'undefined' || console == null) return;
+    if (typeof(console) == 'undefined' || console == null)
+      return;
     var now = (new Date()).getTime();
     if (loggingLevel >= 2 || (loggingLevel == 1 && logType && logType == 1)) {
       console.log(org.gigapan.Util.convertTimeToMinsSecsString(now) + ": " + str);
@@ -133,7 +214,7 @@ if (!org.gigapan) {
   };
 
   org.gigapan.Util.getCurrentTimeInSecs = function() {
-    return .001 * (new Date()).getTime();
+    return 0.001 * (new Date()).getTime();
   };
 
   org.gigapan.Util.formatTime = function(theTime, willShowMillis, willShowHours) {
@@ -160,44 +241,94 @@ if (!org.gigapan) {
       millisStr = "0" + millisStr;
     }
 
-    return (willShowHours ? hoursStr + ':' : '') +
-            minutesStr + ":" +
-            secondsStr +
-            (willShowMillis ? "." + millisStr : '');
+    return ( willShowHours ? hoursStr + ':' : '') + minutesStr + ":" + secondsStr + ( willShowMillis ? "." + millisStr : '');
   };
 
-  org.gigapan.Util.isChrome = function() {
-    if (isChromeCached != undefined) {
-      return isChromeCached;
-    }
-    return isChromeCached = (navigator.userAgent.indexOf("Chrome") >= 0);
-  };
-
-  // wrapper for ajax calls
-  org.gigapan.Util.ajax = function(dataType, url, callback) {
+  // Wrapper for ajax calls
+  org.gigapan.Util.ajax = function(dataType, rootPath, path, callback) {
+    var ajaxUrl;
     if (typeof(cached_ajax) != "undefined") {
-      // we are on file url and part of view.html
-      //org.gigapan.Util.log("We are loading from file url.");
-      if (typeof(cached_ajax[url]) == "undefined") {
-        org.gigapan.Util.error("Error loading file from file URL [" + url + "]");
+      // We are on file url or using cached ajax to get around
+      // cross domain security policies
+      ajaxUrl = rootPath + path;
+      // If the key does not include the absolute dataset URL,
+      // assume the key is relative and in the form of "./foo.blah"
+      if (typeof(cached_ajax[ajaxUrl]) == "undefined")
+        ajaxUrl = "./" + path;
+      if (typeof(cached_ajax[ajaxUrl]) == "undefined") {
+        org.gigapan.Util.error("Error loading key from ajax_includes [" + ajaxUrl + "]");
         return;
       }
-      callback(cached_ajax[url]);
+      callback(cached_ajax[ajaxUrl]);
     } else {
       // We are not on file url or we are utilizing the Chrome
       // --allow-file-access-from-files param and can do normal ajax calls
-      //org.gigapan.Util.log("We are not loading from file url.");
+      ajaxUrl = rootPath + path;
       $.ajax({
         dataType: dataType,
-        url: url,
-        success: function (data) {
-          callback(data);
-        }, error: function () {
-          org.gigapan.Util.error("Error loading file from URL [" + url + "]");
+        url: ajaxUrl,
+        success: function(data) {
+          if (data)
+            callback(data);
+        },
+        error: function() {
+          org.gigapan.Util.error("Error loading file from URL [" + ajaxUrl + "]");
           return;
         }
       });
     }
-  }
+  };
+
+  org.gigapan.Util.htmlForTextWithEmbeddedNewlines = function(text) {
+    if (text === undefined)
+      return;
+    var htmls = [];
+    var lines = text.split(/\n/);
+    var className = "";
+    for (var i = 0; i < lines.length; i++) {
+      if (i == 0)
+        className = "captureTimeMain";
+      else
+        className = "captureTimeSub" + i;
+      htmls.push(jQuery(document.createElement('div')).html("<div class=\"" + className + "\">" + lines[i]).html() + "</div>");
+    }
+    return htmls.join("");
+  };
+
+  org.gigapan.Util.unpackVars = function(str) {
+    var keyvals = str.split('&');
+    var vars = {};
+
+    if (keyvals.length == 1 && keyvals[0] == "")
+      return null;
+
+    for (var i = 0; i < keyvals.length; i++) {
+      var keyval = keyvals[i].split('=');
+      vars[keyval[0]] = keyval[1];
+    }
+    return vars;
+  };
+
+  // Note: Hash variables may contain potentially unsafe user-inputted data.
+  // Caution must be taken when working with these values.
+  org.gigapan.Util.getUnsafeHashVars = function() {
+    return org.gigapan.Util.unpackVars(window.location.hash.slice(1));
+  };
+
+  // Select an element in jQuery selectable
+  org.gigapan.Util.selectSelectableElements = function($selectableContainer, $elementsToSelect) {
+    if ($selectableContainer.length == 0) return;
+    // Add unselecting class to all elements in the styleboard canvas except the ones to select
+    $(".ui-selected", $selectableContainer).not($elementsToSelect).removeClass("ui-selected").addClass("ui-unselecting");
+    // Add ui-selecting class to the elements to select
+    $elementsToSelect.not(".ui-selected").addClass("ui-selecting");
+    // Refresh the selectable to prevent errors
+    $selectableContainer.selectable('refresh');
+    // Trigger the mouse stop event (this will select all .ui-selecting elements, and deselect all .ui-unselecting elements)
+    $selectableContainer.data("uiSelectable")._mouseStop(null);
+    // Scroll to the position
+    var $selectableContainerParent = $selectableContainer.parent();
+    $selectableContainerParent.scrollLeft(Math.round($elementsToSelect.position().left - $selectableContainerParent.width() / 3));
+  };
 
 })();
